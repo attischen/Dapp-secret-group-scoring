@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandleMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "buy_course_ticket"
+      ],
+      "properties": {
+        "buy_course_ticket": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "reprice"
+      ],
+      "properties": {
+        "reprice": {
+          "type": "object",
+          "required": [
+            "price"
+          ],
+          "properties": {
+            "price": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "cancel_sell"
+      ],
+      "properties": {
+        "cancel_sell": {
+          "type": "object"
+        }
+      }
+    }
+  ]
+}

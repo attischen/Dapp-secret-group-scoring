@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InitMsg",
+  "type": "object",
+  "required": [
+    "course_name",
+    "course_ticket",
+    "price"
+  ],
+  "properties": {
+    "course_name": {
+      "type": "string"
+    },
+    "course_ticket": {
+      "type": "string"
+    },
+    "price": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  }
+}
