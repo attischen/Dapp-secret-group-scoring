@@ -3,21 +3,18 @@
   "title": "InitMsg",
   "type": "object",
   "required": [
-    "course_name",
-    "course_ticket",
-    "price"
+    "addr_member",
+    "group_name"
   ],
   "properties": {
-    "course_name": {
-      "type": "string"
+    "addr_member": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
     },
-    "course_ticket": {
+    "group_name": {
       "type": "string"
-    },
-    "price": {
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
     }
   }
 }

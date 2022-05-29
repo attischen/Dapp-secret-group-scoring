@@ -5,10 +5,29 @@
     {
       "type": "object",
       "required": [
-        "get_info"
+        "get_member_score"
       ],
       "properties": {
-        "get_info": {
+        "get_member_score": {
+          "type": "object",
+          "required": [
+            "member"
+          ],
+          "properties": {
+            "member": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_member"
+      ],
+      "properties": {
+        "get_member": {
           "type": "object"
         }
       }

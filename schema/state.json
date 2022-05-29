@@ -3,38 +3,38 @@
   "title": "State",
   "type": "object",
   "required": [
-    "course_name",
-    "course_ticket",
-    "owner",
-    "price",
-    "sell_end"
+    "addr_member",
+    "group_name",
+    "leader",
+    "member_scoring"
   ],
   "properties": {
-    "course_name": {
+    "addr_member": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "group_name": {
       "type": "string"
     },
-    "course_ticket": {
-      "type": "string"
+    "leader": {
+      "$ref": "#/definitions/HumanAddr"
     },
-    "owner": {
-      "$ref": "#/definitions/CanonicalAddr"
-    },
-    "price": {
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
-    },
-    "sell_end": {
-      "type": "boolean"
+    "member_scoring": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
     }
   },
   "definitions": {
-    "Binary": {
-      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+    "HumanAddr": {
       "type": "string"
-    },
-    "CanonicalAddr": {
-      "$ref": "#/definitions/Binary"
     }
   }
 }

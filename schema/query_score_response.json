@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryScoreResponse",
+  "type": "object",
+  "required": [
+    "member_score"
+  ],
+  "properties": {
+    "member_score": {
+      "type": "integer",
+      "format": "int32"
+    }
+  }
+}

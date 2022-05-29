@@ -3,8 +3,9 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use mysimplecounter::msg::{InfoResponse, HandleMsg, InitMsg, QueryMsg};
-use mysimplecounter::state::State;
+use GroupVoter::msg::{QueryScoreResponse,QueryMemberResponse, HandleMsg, InitMsg, QueryMsg};
+use GroupVoter::state::State;
+
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -16,5 +17,6 @@ fn main() {
     export_schema(&schema_for!(HandleMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(State), &out_dir);
-    export_schema(&schema_for!(InfoResponse), &out_dir);
+    export_schema(&schema_for!(QueryScoreResponse), &out_dir);
+    export_schema(&schema_for!(QueryMemberResponse), &out_dir);
 }

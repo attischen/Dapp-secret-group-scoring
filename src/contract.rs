@@ -1,29 +1,60 @@
 use cosmwasm_std::{
-    debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdError, StdResult, Storage,
+    debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, LogAttribute,
+    StdError, StdResult, Storage,HumanAddr,
 };
-
-use crate::msg::{InfoResponse, HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
+use schemars::{JsonSchema,schema_for};
+use std::collections::HashMap;
+use crate::msg::{QueryScoreResponse,QueryMemberResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::state::{load, may_load, save,config, config_read, State,CONFIG_KEY};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+    let mut addr_member_: HashMap<String, String> = HashMap::new();
+    let mut member_scoring_: HashMap<String,HashMap<String,i32>> = HashMap::new();
+    if msg.addr.len() != msg.member.len() {
+        return Err(StdError::GenericErr { 
+            msg: "addr member length unequal".to_string(),
+            backtrace: None
+        });
+    }
+    for i in 0..msg.addr.len(){
+        addr_member_.insert(msg.addr[i].clone(),msg.member[i].clone());
+    }
+
+    for member in msg.member{
+        let mut scoring: HashMap<String,i32> = HashMap::new();
+        member_scoring_.insert(member.to_string(),scoring);
+    }
+
     let state = State {
-        course_name: msg.course_name,
-        course_ticket: msg.course_ticket,
-        price: msg.price,
-        sell_end: false,
-        owner: deps.api.canonical_address(&env.message.sender)?,
+        group_name: msg.group_name,
+        //addr_member: msg.addr_member,
+        addr_member: addr_member_,
+        member_scoring: member_scoring_,
+        //leader: env.message.sender.clone(),
     };
 
-    config(&mut deps.storage).save(&state)?;
+    //config(&mut deps.storage).save(&state)?;
+    /*for (member,scoring) in &state.member_scoring{
+        println!("member {}'s scoring:",member);
+        for (scoree,score) in scoring{
+            println!("{}:{}",scoree,score);
+        }
+    }*/
+    
 
-    debug_print!("Contract was initialized by {}", env.message.sender);
-
-    Ok(InitResponse::default())
+    save(&mut deps.storage, CONFIG_KEY, &state)?;
+    let mut la = LogAttribute::default();
+    la.value = "test".to_string();
+    
+    //Ok(InitResponse::default());
+    Ok(InitResponse {
+        messages: vec![],
+        log: vec![la],
+    })
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
@@ -32,94 +63,119 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::BuyCourseTicket {amount} => try_buy(deps, env,amount),
-        HandleMsg::CancelSell {} => try_cancel(deps, env),
-        HandleMsg::Reprice { price } => try_reprice(deps, env, price),
+        HandleMsg::Score{member,point} => try_score(deps, env,member,point),
     }
 }
 
-pub fn try_buy<S: Storage, A: Api, Q: Querier>(
+pub fn try_score<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    amount: i32,
+    env: Env,
+    member: String,
+    point: i32,
 ) -> StdResult<HandleResponse> {
-    let state: State = config_read(&deps.storage).load()?;
-    if state.sell_end{
+    let mut state: State = load(& deps.storage, CONFIG_KEY)?;
+
+
+    for (member,scoring) in &state.member_scoring{
+        println!("member {}'s scoring:",member);
+        for (scoree,score) in scoring{
+            println!("{}:{}",scoree,score);
+        }
+    } 
+
+    //let state: State = config_read(&deps.storage).load()?;
+    let sender_addr = env.message.sender;
+    if !state.addr_member.contains_key(&sender_addr.as_str().to_string()){
         return Err(StdError::GenericErr { 
-            msg: "Selling has ended".to_string(),
+            msg: "not in group".to_string(),
             backtrace: None
         });
     }
-    if amount < state.price{
+
+    if !score_valid(point){
         return Err(StdError::GenericErr { 
-            msg: "Not enough".to_string(),
+            msg: "Score invalid".to_string(),
             backtrace: None
         });
     }
-
-    config(&mut deps.storage).update(|mut state| {
-        state.sell_end = true;
-        Ok(state)
-    })?;
-
-    debug_print("bought successfully");
-    let mut res = HandleResponse::default();
-    res.data = Some(Binary::from_base64(&*state.course_ticket)?);
-    Ok(res)
-}
-
-pub fn try_cancel<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> StdResult<HandleResponse> {
-    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
-    config(&mut deps.storage).update(|mut state| {
-        if sender_address_raw != state.owner {
-            return Err(StdError::Unauthorized { backtrace: None });
+    /*config(&mut deps.storage).update(|mut state| {
+        if let Some(scoring) = state.member_scoring.get_mut(&state.addr_member[&sender_addr.as_str().to_string()]) {
+            if let Some(score) = scoring.get_mut(&member) {
+                *score = point;
+            }
         }
-        state.sell_end = true;
         Ok(state)
-    })?;
-
-    debug_print("sell ended successfully");
-    Ok(HandleResponse::default())
-}
-
-
-pub fn try_reprice<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    price: i32,
-) -> StdResult<HandleResponse> {
-    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
-    config(&mut deps.storage).update(|mut state| {
-        if sender_address_raw != state.owner {
-            return Err(StdError::Unauthorized { backtrace: None });
+    })?;*/
+    println!("sender_addr:{}",sender_addr);
+    if let Some(scoring) = state.member_scoring.get_mut(&state.addr_member[&sender_addr.as_str().to_string()]) {
+        if let Some(score) = scoring.get_mut(&member) {
+            *score = point;
+            println!("scored");
+        }else{
+            scoring.insert(member,point);
+            println!("1st scored");
         }
-        state.price = price;
-        Ok(state)
-    })?;
-    debug_print("repriced successfully");
-    Ok(HandleResponse::default())
+    }
+
+    save(&mut deps.storage, CONFIG_KEY, &state)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&"scored successfully".to_string())?),
+    })
 }
+
+fn score_valid(score:i32) -> bool{
+    return score >=0 && score <= 100;
+}
+
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetInfo {} => to_binary(&query_info(deps)?),
+        QueryMsg::GetMemberScore{member} => to_binary(&query_score(deps,member)?),
+        QueryMsg::GetMember{} => to_binary(&query_member(deps)?),
     }
 }
 
-fn query_info<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<InfoResponse> {
-    let state = config_read(&deps.storage).load()?;
-    Ok(InfoResponse { 
-        course_name: state.course_name,
-        price: state.price,
-        sell_end: state.sell_end, 
+fn query_score<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    queried_member : String,
+) -> StdResult<QueryScoreResponse> {
+    let mut avgscore = 0;
+    let mut member_count = 0;
+    let mut state: State = load(& deps.storage, CONFIG_KEY)?;
+    //let state = config_read(&deps.storage).load()?;
+    for (_member,scoring) in &state.member_scoring{
+        if !scoring.contains_key(&queried_member){
+            return Err(StdError::GenericErr { 
+                msg: "Not all members scored".to_string(),
+                backtrace: None
+            });
+        }
+        avgscore += scoring[&queried_member];
+        member_count += 1;
+    } 
+    avgscore /= member_count;
+    Ok(QueryScoreResponse { 
+        member_score: avgscore 
     })
 }
+
+fn query_member<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<QueryMemberResponse> {
+    let state: State = load(& deps.storage, CONFIG_KEY)?;
+    //let state = load(&deps.storage).load()?;
+    Ok(QueryMemberResponse { 
+        group_name : state.group_name,
+        members : state.addr_member.values().cloned().collect::<Vec<String>>(),
+    })
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -129,9 +185,16 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
+        let schema = schema_for!(InitMsg);
+        println!("\n\n\n{}\n\n\n", serde_json::to_string_pretty(&schema).unwrap());
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg { price: 10,course_name:"forest".to_string(),course_ticket:"7777".to_string()};
+        let msg = InitMsg { 
+            group_name: "testGroup".to_string(), 
+            addr: vec!["mockaddr1".to_string(),"mockaddr2".to_string(),"mockaddr3".to_string(),"mockaddr4".to_string()],
+            member: vec!["alice".to_string(),"bryan".to_string(),"cindy".to_string(),"dylan".to_string()], 
+        };
+
         let env = mock_env("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
@@ -139,62 +202,59 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(&deps, QueryMsg::GetInfo {}).unwrap();
-        let value: InfoResponse = from_binary(&res).unwrap();
-        assert_eq!("forest".to_string(), value.course_name);
-        assert_eq!(10, value.price);
-        assert_eq!(false, value.sell_end);
-    }
-
-    #[test]
-    fn buy() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-
-        let msg = InitMsg {price: 10,course_name:"forest".to_string(),course_ticket:"7777".to_string()};
-        let env = mock_env("creator", &coins(2, "token"));
-        let _res = init(&mut deps, env, msg).unwrap();
-
-        // anyone can buy
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::BuyCourseTicket {amount:10};
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // should end
-        let res = query(&deps, QueryMsg::GetInfo {}).unwrap();
-        let value: InfoResponse = from_binary(&res).unwrap();
-        assert_eq!(true, value.sell_end);
-    }
-
-    #[test]
-    fn buyfail() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-
-        let msg = InitMsg {price: 10,course_name:"forest".to_string(),course_ticket:"7777".to_string()};
-        let env = mock_env("creator", &coins(2, "token"));
-        let _res = init(&mut deps, env, msg).unwrap();
-
-        // not enough money
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::BuyCourseTicket {amount:5};
-        let _res = handle(&mut deps, env, msg);
-        match _res {
-            Err(StdError::GenericErr { .. }) => {}
-            _ => panic!("Must return generic error"),
+        let res = query(&deps, QueryMsg::GetMember {}).unwrap();
+        let value: QueryMemberResponse = from_binary(&res).unwrap();
+        for m in value.members{
+            println!("member {}",m);
         }
-        // should not end
-        let res = query(&deps, QueryMsg::GetInfo {}).unwrap();
-        let value: InfoResponse = from_binary(&res).unwrap();
-        assert_eq!(false, value.sell_end);
+        assert_eq!("testGroup".to_string(), value.group_name);
+    }
+    #[test]
+    fn always_true() {
+        assert_eq!(1,1);
+    }
 
+    #[test]
+    fn score() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        // anyone can buy
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::BuyCourseTicket {amount:10};
-        let _res = handle(&mut deps, env, msg).unwrap();
+        let msg = InitMsg { 
+            group_name: "testGroup".to_string(), 
+            addr: vec!["mockaddr1".to_string(),"mockaddr2".to_string(),"mockaddr3".to_string(),"mockaddr4".to_string()],
+            member: vec!["alice".to_string(),"bryan".to_string(),"cindy".to_string(),"dylan".to_string()], 
+        };
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
 
-        // should end
-        let res = query(&deps, QueryMsg::GetInfo {}).unwrap();
-        let value: InfoResponse = from_binary(&res).unwrap();
-        assert_eq!(true, value.sell_end);
+        // score
+        let env = mock_env("mockaddr1", &coins(2, "token"));
+        let msg = HandleMsg::Score {member:"alice".to_string(),point:10};
+        let _res = handle(&mut deps, env, msg);
+        
+        let env = mock_env("mockaddr2", &coins(2, "token"));
+        let msg = HandleMsg::Score {member:"alice".to_string(),point:20};
+        let _res = handle(&mut deps, env, msg);
+        
+        let env = mock_env("mockaddr3", &coins(2, "token"));
+        let msg = HandleMsg::Score {member:"alice".to_string(),point:30};
+        let _res = handle(&mut deps, env, msg);
+        
+        let env = mock_env("mockaddr4", &coins(2, "token"));
+        let msg = HandleMsg::Score {member:"alice".to_string(),point:40};
+        let _res = handle(&mut deps, env, msg);
+
+        let res = query(&deps, QueryMsg::GetMemberScore {member:"alice".to_string()}).unwrap();
+        let value: QueryScoreResponse = from_binary(&res).unwrap();
+        assert_eq!(25, value.member_score);
+
+        // rescore
+        let env = mock_env("mockaddr1", &coins(2, "token"));
+        let msg = HandleMsg::Score {member:"alice".to_string(),point:30};
+        let _res = handle(&mut deps, env, msg);
+
+        let res = query(&deps, QueryMsg::GetMemberScore {member:"alice".to_string()}).unwrap();
+        let value: QueryScoreResponse = from_binary(&res).unwrap();
+        assert_eq!(30, value.member_score);
+
     }
 }

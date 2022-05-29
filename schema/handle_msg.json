@@ -5,53 +5,24 @@
     {
       "type": "object",
       "required": [
-        "buy_course_ticket"
+        "score"
       ],
       "properties": {
-        "buy_course_ticket": {
+        "score": {
           "type": "object",
           "required": [
-            "amount"
+            "member",
+            "point"
           ],
           "properties": {
-            "amount": {
+            "member": {
+              "type": "string"
+            },
+            "point": {
               "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
+              "format": "int32"
             }
           }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "reprice"
-      ],
-      "properties": {
-        "reprice": {
-          "type": "object",
-          "required": [
-            "price"
-          ],
-          "properties": {
-            "price": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "cancel_sell"
-      ],
-      "properties": {
-        "cancel_sell": {
-          "type": "object"
         }
       }
     }
